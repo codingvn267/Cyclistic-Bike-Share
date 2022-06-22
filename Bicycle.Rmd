@@ -1,0 +1,22 @@
+---
+title: "Bicycle"
+author: "Tung"
+date: "6/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library (dplyr)
+library (plotly)
+library (readr)
+library (geosphere)
+library (ggplot2)
+library (scales)
+library (lubridate)
+library (tidyverse)
+```
+
