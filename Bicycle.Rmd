@@ -1,0 +1,166 @@
+---
+title: "Bicycle"
+author: "Tung"
+date: "6/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library (dplyr)
+library (plotly)
+library (readr)
+library (geosphere)
+library (ggplot2)
+library (scales)
+library (lubridate)
+library (tidyverse)
+combined <- bind_rows (X202103_divvy_tripdata, X202104_divvy_tripdata, X202105_divvy_tripdata, X202106_divvy_tripdata, X202107_divvy_tripdata, X202108_divvy_tripdata, X202109_divvy_tripdata, X202110_divvy_tripdata, X202111_divvy_tripdata, X202112_divvy_tripdata, X202201_divvy_tripdata, X202202_divvy_tripdata)
+combined
+head (combined)
+combined_2 <- mutate (combined, time_difference_hours = difftime (ended_at, started_at, units ="hours")) %>% 
+  mutate (combined, distance_km = distHaversine(cbind(start_lng, start_lat), cbind (end_lng, end_lat))*0.001)
+combine_2
+sapply (combined_2, function(x) sum (is.na(x)))
+
+ggplot(combined_2, aes(x=member_casual)) +
+  geom_bar(fill = "Orange") +
+  labs(
+    title = "Number of rides completed by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    x = "User type",
+    y = "Number of rides (in millions)") +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6)) +
+  geom_text(stat='count', aes(label=..count..), vjust=+2, color="white")
+
+data_bar2<- combined_2 %>% 
+  group_by (member_casual) %>% 
+  summarise(distance_km=sum(distance_km, na.rm=TRUE)) 
+
+ggplot(data_bar2, aes(x=member_casual, y=distance_km)) +
+  geom_bar(stat = "identity", fill= "blue") +
+  labs(
+    title = "Distance travelled by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    x = "User type",
+    y = "Distance travelled (kilometers)") +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 2e-6)) +
+  geom_text(aes(label=round(stat(y),2)), vjust=+2, color="white")
+data_bar2.1 <- combined_2 %>% 
+  group_by(member_casual) %>%
+  summarise(average_distance_km=mean(distance_km, na.rm=TRUE)) 
+print(data_bar2.1)
+
+data_bar3 <- combined_2 %>%
+  group_by(member_casual) %>%
+  summarise(time=sum(time_difference_hours, na.rm=TRUE))
+
+ggplot(data_bar3, aes(x=member_casual, y=time)) +
+  geom_bar(stat = "identity", fill = "yellow") +
+  labs(
+    title = "Hours cycled by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    x = "User type",
+    y = "Hours cycled") +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6)) +
+  geom_text(aes(label=round(time,2)), vjust=+2, color="black")
+
+data_bar3.1 <- combined_2 %>%
+  group_by(member_casual) %>%
+  summarise(average_time=mean(time_difference_hours, na.rm=TRUE))
+print(data_bar3.1)
+
+data_bar4 <- combined_2 %>%
+  group_by(member_casual, rideable_type) %>%
+  summarise(count_of = n())
+
+ggplot(data_bar4, aes(x=member_casual, y= count_of, fill=rideable_type)) +
+  geom_bar(stat="identity") +
+  labs(
+    title = "Bike preference by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    fill = "Bike type",
+    x = "User type",
+    y = "Number of users") +
+  geom_text(aes(label=count_of), position = position_stack(vjust = .5), color="white") +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6))
+
+data_bar5 <- mutate(combined_2, start_month_year = floor_date(as_date(started_at), "month")) %>%
+  group_by(start_month_year, member_casual) %>%
+  summarise(count_of = n())
+
+ggplot(data_bar5, aes(x=start_month_year, y=count_of, fill="orange"))+
+  geom_bar(stat="identity") +
+  facet_wrap(~member_casual)+
+  labs(
+    title = "Number of rides completed by month by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    x = "Month",
+    y = "Number of rides completed") +
+  geom_text(aes(label=count_of), position = position_stack(vjust = .5), color="black", angle = 90) +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6)) +
+  scale_x_date(date_labels = "%b %y", date_breaks = "2 month") +
+  theme(legend.position = "none")
+
+data_bar6 <- mutate(combined_2, start_day = weekdays(started_at)) %>%
+  group_by(start_day, member_casual) %>%
+  summarise(count_of = n())
+
+level_order <-c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+
+ggplot(data_bar6, aes(x=factor(start_day, level = level_order), y=count_of, fill=member_casual))+
+  geom_bar(stat="identity") +
+  facet_wrap(~member_casual) +
+  labs(
+    title = "Number of rides completed by day by user type",
+    subtitle = "For the period between February 2021 and February 2022",
+    x = "Day",
+    y = "Number of rides completed",
+    fill = "User type") +
+  geom_text(aes(label=count_of), position = position_stack(vjust = .5), color="black", angle = 90) +
+  scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6)) +
+  theme(axis.text.x=element_text(angle = 90))
+
+table1 <- combined_2 %>%
+  group_by(member_casual, start_station_name) %>%
+  summarise(count_of=n()) %>%
+  arrange(desc(count_of)) %>%
+  na.omit(start_station_name)
+
+  ## Table 1.1 - By casual riders ##
+table1.1 <- filter(table1, member_casual =="casual") %>%
+  rename(number_of_trips = count_of) %>%
+  slice(1:5)
+
+  #Table 1.2 - By members ##
+table1.2 <- filter(table1, member_casual =="member") %>%
+  rename(number_of_trips = count_of) %>%
+  slice(1:5)
+
+print(table1.1)
+print(table1.2)
+
+table2 <- combined_2 %>%
+  group_by(member_casual, end_station_name) %>%
+  summarise(count_of=n()) %>%
+  arrange(desc(count_of)) %>%
+  na.omit(end_station_name)
+
+  ## Table 2.1 - By casual riders ##
+table2.1 <- filter(table2, member_casual =="casual") %>%
+  rename(number_of_trips = count_of) %>%
+  slice(1:5)
+
+  #Table 2.2 - By members ##
+table2.2 <- filter(table2, member_casual =="member") %>%
+  rename(number_of_trips = count_of) %>%
+  slice(1:5)
+
+print(table2.1)
+print(table2.2)
+
+```
+
